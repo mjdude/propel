@@ -15,11 +15,19 @@
 import { createServer } from "http-server";
 import * as puppeteer from "puppeteer";
 import { format } from "util";
+import { IS_NODE } from "../src/util";
 import { exitOnFail } from "./tester";
 
 // In addition to importing assert, importing util.ts has the necessary
 // side-effect of making unhandled rejections crash node.
 import { assert } from "../src/util";
+
+// Allow people to filter the tests from the command-line.
+// Example: ts-node ./tools/test_browser.ts concat
+let filterExpr: string = null;
+if (IS_NODE) {
+  if (process.argv.length >= 2) filterExpr = process.argv[2];
+}
 
 // The PP_TEST_DEBUG environment variable can be used to run the tests in
 // debug mode. When debug mode is enabled...
@@ -43,17 +51,24 @@ interface Test {
   timeout: number;
 }
 
-const TESTS: Test[] = [
+// This special webpage runs the tests in the browser.
+// If a filter is supplied, it is the only page loaded.
+const propelTests: Test = {
+    path: "static/test.html#script=/test_website.js",
+    doneMsg: /DONE/g,
+    timeout: 2 * 60 * 1000,
+};
+
+let TESTS: Test[] = [
   // This page loads and runs all the webpack'ed unit tests.
   // The test harness logs "DONE bla bla" to the console when done.
   // If this message doesn't appear, or an unhandled error is thrown on the
   // page, the test fails.
-  {
-    path: "static/test.html#script=/test_website.js",
-    doneMsg: /DONE/g,
-    timeout: 2 * 60 * 1000,
-  },
-  {
+  propelTests,
+];
+
+if (!filterExpr) {
+  TESTS = TESTS.concat([{
     path: "index.html",
     doneMsg: /Propel onload/g,
     timeout: 10 * 1000,
@@ -72,8 +87,8 @@ const TESTS: Test[] = [
     path: "docs/index.html",
     doneMsg: /Propel onload/g,
     timeout: 10 * 1000,
-  },
-];
+  }]);
+}
 
 if (testdl) {
   TESTS.unshift({
@@ -132,7 +147,10 @@ async function runTest(browser, port, { path, doneMsg, timeout }: Test) {
   const promise = new Promise((res, rej) => { pass = res; fail = rej; });
   let timer = null;
 
-  const url = `http://localhost:${port}/${path}`;
+  let url = `http://localhost:${port}/${path}`;
+  if (filterExpr) {
+    url += "&filter=" + filterExpr;
+  }
   console.log("TEST", url);
 
   const page = await browser.newPage();
