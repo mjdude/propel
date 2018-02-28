@@ -15,6 +15,7 @@
 import { createServer } from "http-server";
 import * as puppeteer from "puppeteer";
 import { format } from "util";
+import { exitOnFail } from "./tester";
 
 // In addition to importing assert, importing util.ts has the necessary
 // side-effect of making unhandled rejections crash node.
@@ -32,6 +33,9 @@ const debug = !!process.env.PP_TEST_DEBUG;
 // also executed. Since webgl isn't available in headless mode, this flag
 // causes Chromium to run in interactive mode.
 const testdl = !!process.env.PP_TEST_DL;
+
+// Run headless only if CI env var is set.
+const headless = (process.env.CI != null);
 
 interface Test {
   path: string;
@@ -88,7 +92,7 @@ if (testdl) {
 
   const browser = await puppeteer.launch({
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
-    headless: !debug && !testdl
+    headless,
   });
 
   for (let i = 0; i < TESTS.length; i++) {
@@ -97,6 +101,7 @@ if (testdl) {
       passed++;
     } else {
       failed++;
+      if (exitOnFail) break;
     }
   }
 
@@ -183,7 +188,9 @@ async function runTest(browser, port, { path, doneMsg, timeout }: Test) {
     console.log(prefix(text, "> "));
 
     assert(doneMsg.global);
-    if (text.match(doneMsg)) {
+    if (text.match(/FAIL/g)) {
+      fail(doneMsg);
+    } else if (text.match(doneMsg)) {
       pass();
     } else {
       restartTimer();

@@ -22,7 +22,7 @@ export interface TestDefinition {
   name: string;
 }
 
-const exitOnFail = true;
+export const exitOnFail = true;
 
 /* A subset of the tests can be ran by providing a filter expression.
  * In Node.js the filter is specified on the command line:
@@ -108,12 +108,12 @@ async function runTests() {
       failed++;
       if (exitOnFail) {
         if (IS_NODE) process.exit(1);
-        return;
+        break;
       }
     }
   }
 
-  console.warn(`\n\nDONE. passed: ${passed}, failed: ${failed}`);
+  console.log(`\n\nDONE. Test passed: ${passed}, failed: ${failed}`);
 
   if (failed === 0) {
     // All good.
