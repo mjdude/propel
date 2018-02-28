@@ -15,7 +15,10 @@
 import { createServer } from "http-server";
 import * as puppeteer from "puppeteer";
 import { format } from "util";
-import "../src/util"; // To make unhandled rejections crash node.
+
+// In addition to importing assert, importing util.ts has the necessary
+// side-effect of making unhandled rejections crash node.
+import { assert } from "../src/util";
 
 // The PP_TEST_DEBUG environment variable can be used to run the tests in
 // debug mode. When debug mode is enabled...
@@ -43,27 +46,27 @@ const TESTS: Test[] = [
   // page, the test fails.
   {
     path: "static/test.html#script=/test_website.js",
-    doneMsg: /^DONE.*failed: 0/,
+    doneMsg: /DONE/g,
     timeout: 2 * 60 * 1000,
   },
   {
     path: "index.html",
-    doneMsg: /Propel onload/,
+    doneMsg: /Propel onload/g,
     timeout: 10 * 1000,
   },
   {
     path: "notebook/",
-    doneMsg: /Propel onload/,
+    doneMsg: /Propel onload/g,
     timeout: 10 * 1000,
   },
   {
     path: "notebook/?nbId=default",
-    doneMsg: /Propel onload/,
+    doneMsg: /Propel onload/g,
     timeout: 10 * 1000,
   },
   {
     path: "docs/index.html",
-    doneMsg: /Propel onload/,
+    doneMsg: /Propel onload/g,
     timeout: 10 * 1000,
   },
 ];
@@ -71,7 +74,7 @@ const TESTS: Test[] = [
 if (testdl) {
   TESTS.unshift({
     path: "static/test.html#script=/test_dl.js",
-    doneMsg: /^DONE.*failed: 0/,
+    doneMsg: /DONE/g,
     timeout: 2 * 60 * 1000
   });
 }
@@ -179,6 +182,7 @@ async function runTest(browser, port, { path, doneMsg, timeout }: Test) {
 
     console.log(prefix(text, "> "));
 
+    assert(doneMsg.global);
     if (text.match(doneMsg)) {
       pass();
     } else {
